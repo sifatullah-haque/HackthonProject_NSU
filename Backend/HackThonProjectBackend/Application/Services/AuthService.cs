@@ -28,29 +28,48 @@ namespace HackThonProjectBackend.Application.Services
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
 
-            public async Task<User> RegisterAsync(string email, string password, string phoneNumber)
+        public async Task<User> RegisterAsync(string email, string password, string phoneNumber)
+        {
+            // Check if the user already exists
+            if (await _context.Users.AnyAsync(u => u.Email == email))
             {
-                if (await _context.Users.AnyAsync(u => u.Email == email))
-                    throw new Exception("User already exists.");
+                throw new Exception("User already exists.");
+            }
 
-                var user = new User
-                {
-                    Id = Guid.NewGuid(),
-                    Email = email,
-                    PasswordHash = ComputeHash(password),
-                    PhoneNumber = phoneNumber,
-                    IsVerified = false,
-                    Role = "User",
-                    IsBanned = false
-                };
+            // Create the new user object
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                PasswordHash = ComputeHash(password),
+                PhoneNumber = phoneNumber,
+                IsVerified = false,
+                Role = "User",
+                IsBanned = false ,
+                RefreshToken = null,
+                 RefreshTokenExpiry = null,
+                 
 
+            };
+
+            try
+            {
+                // Add the user to the database
                 _context.Users.Add(user);
+
+                // Attempt to save changes to the database
                 await _context.SaveChangesAsync();
-
-                // TODO: Integrate OTPService here to send OTP
-
                 return user;
             }
+            catch (Exception e)
+            {
+                // Log the exception details or rethrow the inner exception for better debugging
+                throw new Exception($"Error saving user: {e.Message}. Inner exception: {e.InnerException?.Message}");
+            }
+        }
+
+
+
 
         public async Task<AuthResponseDto> LoginAsync(string email, string password)
         {

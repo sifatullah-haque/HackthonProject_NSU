@@ -1,9 +1,11 @@
 ﻿using HackThonProjectBackend.API.DTO;
 using HackThonProjectBackend.Application.Interfaces;
 using HackThonProjectBackend.Domain.Entities;
+using HackThonProjectBackend.Infrastureture.Data;
 using HackThonProjectBackend.Infrastureture.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace HackThonProjectBackend.API.Controllers
 {
@@ -14,15 +16,20 @@ namespace HackThonProjectBackend.API.Controllers
         private readonly ICrimeReportService _crimeReportService;
         private readonly IFileStorageService _fileStorageService;
         private readonly IAIService _aiService;
+        private readonly IHubContext<NotificationHub> _hubContext;
+
 
         public CrimeReportsController(
             ICrimeReportService crimeReportService,
             IFileStorageService fileStorageService,
-            IAIService aiService)
+            IAIService aiService ,
+             IHubContext<NotificationHub> hubContext
+            )
         {
             _crimeReportService = crimeReportService;
             _fileStorageService = fileStorageService;
             _aiService = aiService;
+            _hubContext = hubContext;
         }
 
         [Authorize]
@@ -57,6 +64,13 @@ namespace HackThonProjectBackend.API.Controllers
             };
 
             var createdReport = await _crimeReportService.CreateCrimeReportAsync(report);
+            await _hubContext.Clients.All.SendAsync("ReceiveNotification", new
+            {
+                Type = "NewCrimeReport",
+                ReportId = createdReport.Id,
+                Title = createdReport.Title,
+                Message = "A new crime report has been created."
+            });
             return Ok(createdReport);
         }
 
@@ -84,6 +98,13 @@ namespace HackThonProjectBackend.API.Controllers
             {
                 await _crimeReportService.VoteCrimeReportAsync(id, voteDto.Upvote);
                 return Ok(new { message = "Vote recorded." });
+                // Send a real-time notification for the vote.
+                await _hubContext.Clients.All.SendAsync("ReceiveNotification", new
+                {
+                    Type = "Vote",
+                    ReportId = id,
+                    Message = "A vote was cast on a crime report."
+                });
             }
             catch (Exception ex)
             {
@@ -106,6 +127,12 @@ namespace HackThonProjectBackend.API.Controllers
             };
 
             var createdComment = await _crimeReportService.AddCommentAsync(id, comment);
+            await _hubContext.Clients.All.SendAsync("ReceiveNotification", new
+            {
+                Type = "Comment",
+                ReportId = id,
+                Message = "A new comment has been added to a crime report."
+            });
             return Ok(createdComment);
         }
     }

@@ -14,7 +14,6 @@ namespace HackThonProjectBackend.API.Controllers
         {
             _authService = authService;
         }
-
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto registerDto)
         {
@@ -25,9 +24,11 @@ namespace HackThonProjectBackend.API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = ex.Message });
+                // Log the exception details here if necessary
+                return BadRequest(new { message = ex.Message, innerMessage = ex.InnerException?.Message });
             }
         }
+
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
